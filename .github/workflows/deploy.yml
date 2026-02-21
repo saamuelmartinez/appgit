@@ -36,7 +36,7 @@ jobs:
           target: "/home/ubuntu/"
           strip_components: 1
 
-      - name: Move .war to Tomcat directory and set permissions
+      - name: Move .war and Restart Tomcat
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.EC2_HOST }}
