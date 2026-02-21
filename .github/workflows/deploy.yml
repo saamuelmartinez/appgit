@@ -8,6 +8,10 @@ on:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    env:
+      DB_ENDPOINT: ${{ secrets.DB_ENDPOINT }}
+      DB_USERNAME: ${{ secrets.DB_USERNAME }}
+      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
 
     steps:
       # 1️⃣ Descargar el código fuente
@@ -21,9 +25,11 @@ jobs:
           java-version: 21
           distribution: temurin
 
-      # 3️⃣ Construir la aplicación con Maven
-      - name: Build with Maven
-        run: mvn clean package -DskipTests
+      # 3️⃣ Construir la aplicación con Maven y ejecutar pruebas
+      - name: Build and test with Maven
+        run: |
+          mvn clean package       # Construir el proyecto
+          mvn test                # Ejecutar pruebas unitarias
 
       # 4️⃣ Copiar el archivo .war a la instancia EC2
       - name: Copy .war to EC2
@@ -36,15 +42,24 @@ jobs:
           target: /home/ubuntu/
           strip_components: 1
 
-      # 5️⃣ Mover el .war a Tomcat y reiniciar
-      - name: Move .war to Tomcat directory and set permissions
+      # 5️⃣ Configurar variables de entorno en la EC2 y mover .war a Tomcat
+      - name: Configure environment and deploy
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_PRIVATE_KEY }}
           script: |
+            # 1️⃣ Configurar variables de entorno persistentes en EC2
+            echo "export DB_ENDPOINT=${{ secrets.DB_ENDPOINT }}" | sudo tee -a /etc/environment
+            echo "export DB_USERNAME=${{ secrets.DB_USERNAME }}" | sudo tee -a /etc/environment
+            echo "export DB_PASSWORD=${{ secrets.DB_PASSWORD }}" | sudo tee -a /etc/environment
+            source /etc/environment
+
+            # 2️⃣ Mover .war a Tomcat y ajustar permisos
             sudo mv /home/ubuntu/demo-0.0.1-SNAPSHOT.war /var/lib/tomcat10/webapps/demo.war
             sudo chown tomcat:tomcat /var/lib/tomcat10/webapps/demo.war
             sudo chmod 755 /var/lib/tomcat10/webapps/demo.war
+
+            # 3️⃣ Reiniciar Tomcat
             sudo systemctl restart tomcat10
