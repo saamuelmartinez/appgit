@@ -4,10 +4,12 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
-class DemoApplicationTests {
+@AutoConfigureMockMvc
+class UsuarioControllerTest {
 
-	@Test
-	void contextLoads() {
-	}
+    @Autowired
+    private MockMvc mockMvc;
 
+    @MockBean
+    private UsuarioService usuarioService; // evita que Spring busque la implementación real
 }
