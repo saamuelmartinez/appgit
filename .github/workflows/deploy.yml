@@ -1,47 +1,23 @@
-name: Deploy Spring Boot to EC2
+# 4️⃣ Copiar el archivo .war a la instancia EC2
+- name: Copy .war to EC2
+  uses: appleboy/scp-action@v0.1.5
+  with:
+    host: ${{ secrets.EC2_HOST }}            # IP pública de la EC2
+    username: ${{ secrets.EC2_USERNAME }}    # Usuario de la instancia (ej: ubuntu)
+    key: ${{ secrets.EC2_PRIVATE_KEY }}      # Contenido del .pem en Secrets
+    source: target/demo-0.0.1-SNAPSHOT.war   # Ruta del .war en tu proyecto
+    target: /home/ubuntu/                    # Carpeta temporal en EC2
+    strip_components: 1                      
 
-on:
-  push:
-    branches:
-      - main
-
-jobs:
-  build-and-deploy:
-    runs-on: ubuntu-latest
-
-    env:
-      DB_ENDPOINT: ${{ secrets.DB_ENDPOINT }}
-      DB_USERNAME: ${{ secrets.DB_USERNAME }}
-      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Set up Java
-        uses: actions/setup-java@v3
-        with:
-          distribution: temurin
-          java-version: 21
-
-      - name: Build project
-        run: mvn clean package -DskipTests
-
-      - name: Copy WAR to EC2
-        uses: appleboy/scp-action@v0.1.5
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
-          port: 22
-          source: "target/*.war"
-          target: "/opt/tomcat/webapps/"
-
-      - name: Restart Tomcat
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
-          script: |
-            sudo systemctl restart tomcat
+# 5️⃣ Mover el .war a Tomcat y reiniciar el servicio
+- name: Move .war to Tomcat directory and set permissions
+  uses: appleboy/ssh-action@master
+  with:
+    host: ${{ secrets.EC2_HOST }}
+    username: ${{ secrets.EC2_USERNAME }}
+    key: ${{ secrets.EC2_PRIVATE_KEY }}
+    script: |
+      sudo mv /home/ubuntu/demo-0.0.1-SNAPSHOT.war /var/lib/tomcat10/webapps/demo.war
+      sudo chown tomcat:tomcat /var/lib/tomcat10/webapps/demo.war
+      sudo chmod 755 /var/lib/tomcat10/webapps/demo.war
+      sudo systemctl restart tomcat10
