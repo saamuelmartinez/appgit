@@ -1,4 +1,4 @@
-name: Deploy to EC2
+name: CI/CD Pipeline
 
 on:
   push:
@@ -9,23 +9,42 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
 
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: example
+          MYSQL_DATABASE: demo_db
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping --silent"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 3
+
+    env:
+      DB_ENDPOINT: jdbc:mysql://localhost:3306/demo_db
+      DB_USERNAME: root
+      DB_PASSWORD: example
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    - name: Set up JDK 21
-      uses: actions/setup-java@v3
-      with:
-        distribution: temurin
-        java-version: 21
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: temurin
 
-    - name: Build and test with Maven
-      run: |
-        mvn clean package        # Limpia y construye el proyecto
-        mvn test                 # Ejecuta las pruebas automáticas
+      - name: Build and test with Maven
+        run: |
+          mvn clean package
+          mvn test
 
-    - name: Deploy to EC2
-      if: success()             # Solo se ejecuta si el paso anterior pasó
-      run: |
-        scp target/demo-0.0.1-SNAPSHOT.war ec2-user@YOUR_EC2_IP:/home/ec2-user/
-        ssh ec2-user@YOUR_EC2_IP "sudo mv /home/ec2-user/demo-0.0.1-SNAPSHOT.war /var/lib/tomcat10/webapps/demo.war && sudo systemctl restart tomcat10"
+      - name: Deploy to EC2
+        if: success()
+        run: |
+          echo "Despliegue aquí..."
+          # Aquí iría el comando real de despliegue (scp, ssh, ansible, etc.)
