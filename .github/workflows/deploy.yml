@@ -1,23 +1,50 @@
-# 4️⃣ Copiar el archivo .war a la instancia EC2
-- name: Copy .war to EC2
-  uses: appleboy/scp-action@v0.1.5
-  with:
-    host: ${{ secrets.EC2_HOST }}            # IP pública de la EC2
-    username: ${{ secrets.EC2_USERNAME }}    # Usuario de la instancia (ej: ubuntu)
-    key: ${{ secrets.EC2_PRIVATE_KEY }}      # Contenido del .pem en Secrets
-    source: target/demo-0.0.1-SNAPSHOT.war   # Ruta del .war en tu proyecto
-    target: /home/ubuntu/                    # Carpeta temporal en EC2
-    strip_components: 1                      
+name: Deploy Spring Boot to EC2 (Ubuntu)
 
-# 5️⃣ Mover el .war a Tomcat y reiniciar el servicio
-- name: Move .war to Tomcat directory and set permissions
-  uses: appleboy/ssh-action@master
-  with:
-    host: ${{ secrets.EC2_HOST }}
-    username: ${{ secrets.EC2_USERNAME }}
-    key: ${{ secrets.EC2_PRIVATE_KEY }}
-    script: |
-      sudo mv /home/ubuntu/demo-0.0.1-SNAPSHOT.war /var/lib/tomcat10/webapps/demo.war
-      sudo chown tomcat:tomcat /var/lib/tomcat10/webapps/demo.war
-      sudo chmod 755 /var/lib/tomcat10/webapps/demo.war
-      sudo systemctl restart tomcat10
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1️⃣ Descargar el código fuente
+      - name: Checkout source code
+        uses: actions/checkout@v2
+
+      # 2️⃣ Configurar JDK 21
+      - name: Set up JDK 21
+        uses: actions/setup-java@v2
+        with:
+          java-version: 21
+          distribution: temurin
+
+      # 3️⃣ Construir la aplicación con Maven
+      - name: Build with Maven
+        run: mvn clean package -DskipTests
+
+      # 4️⃣ Copiar el archivo .war a la instancia EC2
+      - name: Copy .war to EC2
+        uses: appleboy/scp-action@v0.1.5
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_PRIVATE_KEY }}
+          source: target/demo-0.0.1-SNAPSHOT.war
+          target: /home/ubuntu/
+          strip_components: 1
+
+      # 5️⃣ Mover el .war a Tomcat y reiniciar
+      - name: Move .war to Tomcat directory and set permissions
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_PRIVATE_KEY }}
+          script: |
+            sudo mv /home/ubuntu/demo-0.0.1-SNAPSHOT.war /var/lib/tomcat10/webapps/demo.war
+            sudo chown tomcat:tomcat /var/lib/tomcat10/webapps/demo.war
+            sudo chmod 755 /var/lib/tomcat10/webapps/demo.war
+            sudo systemctl restart tomcat10
