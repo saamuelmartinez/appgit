@@ -31,7 +31,11 @@ jobs:
           mvn clean package       # Construir el proyecto
           mvn test                # Ejecutar pruebas unitarias
 
-      # 4️⃣ Copiar el archivo .war a la instancia EC2
+      - name: Build and test with Maven
+  run: |
+    mvn clean package   # Compila la aplicación
+    mvn test            # Ejecuta las pruebas automáticas
+# 4️⃣ Copiar el archivo .war a la instancia EC2
       - name: Copy .war to EC2
         uses: appleboy/scp-action@v0.1.5
         with:
